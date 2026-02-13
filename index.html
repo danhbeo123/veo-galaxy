@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VEO GALAXY CORE - Interactive Edition</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Rajdhani:wght@500;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #bc13fe;
+            --glass: rgba(5, 5, 10, 0.9);
+            --record-red: #ff3333;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Rajdhani', sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: radial-gradient(circle, #0a0a12 0%, #000000 100%);
+            cursor: move;
+            /* Biểu tượng con trỏ khi di chuyển */
+        }
+
+        /* --- UI AUTH --- */
+        #auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 200;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .auth-box {
+            width: 380px;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 25px;
+            border-bottom: 1px solid #333;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            cursor: pointer;
+            color: #888;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .tab-btn.active {
+            color: var(--neon-blue);
+            border-bottom: 2px solid var(--neon-blue);
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid #333;
+            color: white;
+            border-radius: 8px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink));
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            font-family: 'Orbitron';
+        }
+
+        .auth-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px var(--neon-blue);
+        }
+
+        /* --- MAIN UI --- */
+        #main-ui {
+            display: none;
+        }
+
+        #top-nav {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            box-sizing: border-box;
+            pointer-events: none;
+            /* Để click xuyên qua vùng trống vào canvas */
+        }
+
+        #top-nav>* {
+            pointer-events: auto;
+            /* Kích hoạt lại click cho các nút */
+        }
+
+        #side-playlist {
+            position: absolute;
+            right: 20px;
+            top: 90px;
+            bottom: 120px;
+            width: 300px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            transform: translateX(350px);
+            transition: 0.4s;
+        }
+
+        #side-playlist.active {
+            transform: translateX(0);
+        }
+
+        .song-item {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            margin-bottom: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            border-bottom: 1px solid transparent;
+        }
+
+        .song-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--neon-blue);
+        }
+
+        .song-item.active {
+            border-left: 3px solid var(--neon-blue);
+            background: linear-gradient(90deg, rgba(0, 243, 255, 0.2), transparent);
+        }
+
+        /* --- CONTROL BAR --- */
+        #bottom-bar {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 85%;
+            max-width: 800px;
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            padding: 15px 40px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .circle-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .circle-btn:hover {
+            background: var(--neon-blue);
+            color: black;
+            box-shadow: 0 0 15px var(--neon-blue);
+        }
+
+        #play-main-btn {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-pink));
+            border: none;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+        }
+
+        /* --- RECORD BUTTON STYLES --- */
+        .record-btn {
+            border: 1px solid rgba(255, 50, 50, 0.5);
+            background: rgba(50, 0, 0, 0.3);
+            color: #ffcccc;
+        }
+
+        .record-btn:hover {
+            background: rgba(255, 0, 0, 0.6) !important;
+            box-shadow: 0 0 15px red !important;
+            color: white;
+        }
+
+        .recording-active {
+            background: red !important;
+            color: white !important;
+            box-shadow: 0 0 20px red !important;
+            animation: pulse-record 1s infinite alternate;
+        }
+
+        @keyframes pulse-record {
+            from {
+                box-shadow: 0 0 10px red;
+            }
+
+            to {
+                box-shadow: 0 0 25px red;
+                transform: scale(1.1);
+            }
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* Hướng dẫn điều khiển */
+        #controls-hint {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 12px;
+            z-index: 5;
+            pointer-events: none;
+            text-shadow: 0 0 5px black;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="auth-overlay">
+        <div class="auth-box">
+            <h2 style="font-family: 'Orbitron'; color: var(--neon-blue); margin-bottom: 20px; letter-spacing: 2px;">VEO
+                GALAXY</h2>
+            <div class="auth-tabs">
+                <div class="tab-btn active" id="tab-login" onclick="switchTab('login')">LOGIN</div>
+                <div class="tab-btn" id="tab-reg" onclick="switchTab('reg')">REGISTER</div>
+            </div>
+            <div id="auth-form">
+                <input type="email" id="email" class="auth-input" placeholder="Email">
+                <input type="password" id="pass" class="auth-input" placeholder="Password (6+ chars)">
+                <button class="auth-btn" id="main-auth-btn" onclick="handleAuth()">ENTER THE VOID</button>
+            </div>
+            <p id="auth-error" style="color: #ff4d4d; font-size: 13px; margin-top: 15px; display: none;"></p>
+        </div>
+    </div>
+
+    <div id="main-ui">
+        <div id="canvas-container"></div>
+        <div id="controls-hint">
+            <i class="fas fa-mouse"></i> Left: Rotate | Right: Pan | Wheel: Zoom
+        </div>
+
+        <div id="top-nav">
+            <div
+                style="background: rgba(255,255,255,0.05); padding: 8px 20px; border-radius: 30px; font-size: 14px; border: 1px solid rgba(255,255,255,0.1);">
+                <i class="fas fa-user-astronaut" style="color:var(--neon-blue)"></i>
+                <span id="user-display" style="font-weight:700; margin: 0 5px;">User</span>
+                <span onclick="logout()"
+                    style="color:var(--neon-pink); cursor:pointer; margin-left: 10px; font-size: 12px;">[LOGOUT]</span>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button class="circle-btn" onclick="document.getElementById('file-input').click()" title="Add Music"><i
+                        class="fas fa-plus"></i></button>
+                <button class="circle-btn" onclick="togglePlaylist()" title="Playlist"><i
+                        class="fas fa-bars"></i></button>
+            </div>
+        </div>
+
+        <div id="side-playlist">
+            <div
+                style="padding: 15px; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.1); color: var(--neon-blue); font-family: 'Orbitron';">
+                MY UNIVERSE</div>
+            <div id="pl-list" style="flex:1; overflow-y:auto; padding: 10px;"></div>
+        </div>
+
+        <div id="bottom-bar">
+            <div>
+                <h3 id="cur-title"
+                    style="margin:0; font-size:16px; color:var(--neon-blue); font-family: 'Orbitron'; letter-spacing: 1px;">
+                    GALAXY MODE</h3>
+                <small id="cur-status" style="color:#888;">Visualizer Active</small>
+            </div>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <button class="circle-btn record-btn" id="btn-record" onclick="toggleRecord()" title="Record Video">
+                    <i class="fas fa-video"></i>
+                </button>
+
+                <button class="circle-btn" onclick="prevNext(-1)"><i class="fas fa-backward"></i></button>
+                <button class="circle-btn" id="play-main-btn" onclick="togglePlay()"><i class="fas fa-play"
+                        id="play-icon"></i></button>
+                <button class="circle-btn" onclick="prevNext(1)"><i class="fas fa-forward"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="file-input" accept="audio/*" multiple onchange="uploadSongs(this.files)">
+    <audio id="audio" crossorigin="anonymous"></audio>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        // --- 1. FIREBASE SETUP ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAG1Ku8U9pwkuoiuLVclNFOeqbffVwjjOI",
+            authDomain: "music-a7a8e.firebaseapp.com",
+            projectId: "music-a7a8e",
+            storageBucket: "music-a7a8e.firebasestorage.app",
+            messagingSenderId: "545415456481",
+            appId: "1:545415456481:web:62d12637780cc23e8ff9a0",
+            measurementId: "G-QZ20H9VJ64"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // --- 2. AUTH & PLAYLIST LOGIC ---
+        let currentMode = 'login';
+        function switchTab(mode) {
+            currentMode = mode;
+            document.getElementById('auth-error').style.display = 'none';
+            document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+            document.getElementById('tab-reg').classList.toggle('active', mode === 'reg');
+            document.getElementById('main-auth-btn').innerText = mode === 'login' ? 'ENTER THE VOID' : 'CREATE UNIVERSE';
+        }
+
+        function handleAuth() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('pass').value;
+            const errBox = document.getElementById('auth-error');
+            if (pass.length < 6) { errBox.innerText = "Mật khẩu quá ngắn!"; errBox.style.display = 'block'; return; }
+            if (currentMode === 'login') {
+                auth.signInWithEmailAndPassword(email, pass).catch(err => { errBox.innerText = err.message; errBox.style.display = 'block'; });
+            } else {
+                auth.createUserWithEmailAndPassword(email, pass).then(cred => {
+                    return db.collection('users').doc(cred.user.uid).set({ songs: [] });
+                }).catch(err => { errBox.innerText = err.message; errBox.style.display = 'block'; });
+            }
+        }
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('auth-overlay').style.display = 'none';
+                document.getElementById('main-ui').style.display = 'block';
+                document.getElementById('user-display').innerText = user.email.split('@')[0];
+                init3D(); syncCloud();
+            } else {
+                document.getElementById('auth-overlay').style.display = 'flex';
+                document.getElementById('main-ui').style.display = 'none';
+            }
+        });
+
+        function logout() { auth.signOut(); location.reload(); }
+
+        // --- 3. DATA & AUDIO HANDLING ---
+        let playlist = [], currentIdx = -1;
+        const audio = document.getElementById('audio');
+
+        let audioCtx, analyser, dataArr, audioSource;
+        let mediaRecorder, recordedChunks = [], isRecording = false;
+
+        function syncCloud() { db.collection('users').doc(auth.currentUser.uid).onSnapshot(doc => { if (doc.exists) { playlist = doc.data().songs || []; renderPlaylist(); } }); }
+
+        async function uploadSongs(files) {
+            const userRef = db.collection('users').doc(auth.currentUser.uid);
+            for (let file of files) {
+                const song = { name: file.name, id: Date.now() };
+                await storeLocal(song.name, file);
+                await userRef.update({ songs: firebase.firestore.FieldValue.arrayUnion(song) });
+            }
+        }
+
+        function renderPlaylist() {
+            const list = document.getElementById('pl-list');
+            list.innerHTML = playlist.map((s, i) => `<div class="song-item ${i === currentIdx ? 'active' : ''}" onclick="playSong(${i})"><span>${s.name}</span></div>`).join('');
+        }
+
+        async function playSong(idx) {
+            currentIdx = idx; const song = playlist[idx]; const file = await getLocal(song.name);
+            if (!file) return alert("File not found locally!");
+            audio.src = URL.createObjectURL(file);
+            audio.play();
+            document.getElementById('play-icon').className = "fas fa-pause";
+            document.getElementById('cur-title').innerText = song.name;
+            renderPlaylist();
+            if (!audioCtx) setupAudio();
+        }
+
+        function togglePlay() {
+            if (audio.paused) {
+                audio.play();
+                document.getElementById('play-icon').className = "fas fa-pause";
+                if (!audioCtx) setupAudio();
+            } else {
+                audio.pause();
+                document.getElementById('play-icon').className = "fas fa-play";
+            }
+        }
+
+        function prevNext(dir) { let n = currentIdx + dir; if (n >= 0 && n < playlist.length) playSong(n); }
+        function togglePlaylist() { document.getElementById('side-playlist').classList.toggle('active'); }
+
+        function storeLocal(n, b) { const req = indexedDB.open("MusicDB", 1); req.onupgradeneeded = e => e.target.result.createObjectStore("files"); req.onsuccess = e => e.target.result.transaction("files", "readwrite").objectStore("files").put(b, n); }
+        function getLocal(n) { return new Promise(res => { const req = indexedDB.open("MusicDB", 1); req.onsuccess = e => { const g = e.target.result.transaction("files").objectStore("files").get(n); g.onsuccess = () => res(g.result); }; }); }
+
+        // --- 4. GALAXY 3D ENGINE & CONTROLS ---
+        let scene, camera, renderer, galaxy, stars;
+        let controls; // Biến cho OrbitControls
+
+        function createStarTexture() {
+            const canvas = document.createElement('canvas'); canvas.width = 64; canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            g.addColorStop(0, 'rgba(255,255,255,1)');
+            g.addColorStop(0.2, 'rgba(200,200,255,0.8)');
+            g.addColorStop(0.5, 'rgba(0,100,255,0.1)');
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        function init3D() {
+            if (scene) return;
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x000000, 0.001);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera.position.z = 100;
+            camera.position.y = 20;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // --- THIẾT LẬP ORBIT CONTROLS ---
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // Hiệu ứng quán tính mượt mà
+            controls.dampingFactor = 0.05;
+            controls.enableZoom = true;
+            controls.enablePan = true;
+            controls.minDistance = 20;  // Không cho zoom quá gần
+            controls.maxDistance = 800; // Không cho zoom quá xa
+            // --------------------------------
+
+            const starTexture = createStarTexture();
+
+            // Galaxy
+            const galGeo = new THREE.BufferGeometry();
+            const galCount = 4000;
+            const galPos = new Float32Array(galCount * 3);
+            const galOriginalPos = new Float32Array(galCount * 3);
+            for (let i = 0; i < galCount; i++) {
+                const r = 25 * Math.cbrt(Math.random());
+                const theta = Math.random() * 2 * Math.PI;
+                const phi = Math.acos(2 * Math.random() - 1);
+                const x = r * Math.sin(phi) * Math.cos(theta);
+                const y = r * Math.sin(phi) * Math.sin(theta);
+                const z = r * Math.cos(phi);
+                galPos[i * 3] = x; galPos[i * 3 + 1] = y; galPos[i * 3 + 2] = z;
+                galOriginalPos[i * 3] = x; galOriginalPos[i * 3 + 1] = y; galOriginalPos[i * 3 + 2] = z;
+            }
+            galGeo.setAttribute('position', new THREE.BufferAttribute(galPos, 3));
+            const galMat = new THREE.PointsMaterial({ size: 2, map: starTexture, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, color: 0x00f3ff });
+            galaxy = new THREE.Points(galGeo, galMat);
+            galaxy.userData = { originalPositions: galOriginalPos };
+            scene.add(galaxy);
+
+            // Stars
+            const starGeo = new THREE.BufferGeometry();
+            const starCount = 3000;
+            const starPos = new Float32Array(starCount * 3);
+            for (let i = 0; i < starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 800;
+            starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+            const starMat = new THREE.PointsMaterial({ size: 4, map: starTexture, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false, color: 0xffffff });
+            stars = new THREE.Points(starGeo, starMat);
+            scene.add(stars);
+
+            animate();
+        }
+
+        // --- 5. AUDIO SETUP & ROUTING ---
+        function setupAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.smoothingTimeConstant = 0.8;
+            audioSource = audioCtx.createMediaElementSource(audio);
+            audioSource.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            dataArr = new Uint8Array(analyser.frequencyBinCount);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Cập nhật controls mỗi khung hình để hiệu ứng damping hoạt động
+            if (controls) controls.update();
+
+            const time = Date.now() * 0.0005;
+
+            if (analyser && galaxy) {
+                analyser.getByteFrequencyData(dataArr);
+                const bass = dataArr[20];
+                const mid = dataArr[100];
+                const treble = dataArr[200];
+
+                const positions = galaxy.geometry.attributes.position.array;
+                const originals = galaxy.userData.originalPositions;
+                const expansion = 1 + (bass / 255) * 1.5;
+
+                for (let i = 0; i < positions.length; i += 3) {
+                    positions[i] = originals[i] * expansion;
+                    positions[i + 1] = originals[i + 1] * expansion;
+                    positions[i + 2] = originals[i + 2] * expansion;
+                }
+                galaxy.geometry.attributes.position.needsUpdate = true;
+
+                // Vẫn giữ tự xoay nhẹ để tạo hiệu ứng động, người dùng có thể xoay đè lên
+                galaxy.rotation.y += 0.005 + (bass / 10000);
+                galaxy.rotation.z += 0.002;
+
+                galaxy.material.color.setHSL((time * 0.5) % 1, 0.9, 0.6);
+                galaxy.material.size = 2 + (mid / 255);
+
+                stars.rotation.y -= 0.001;
+                stars.material.opacity = 0.3 + (treble / 255) * 0.7;
+                stars.material.color.setHSL((time * 0.2) % 1, 0.8, 0.8);
+            }
+            renderer.render(scene, camera);
+        }
+
+        window.onresize = () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        };
+
+        // --- 6. VIDEO RECORDING SYSTEM ---
+        function toggleRecord() {
+            if (!isRecording) startRecording();
+            else stopRecording();
+        }
+
+        function startRecording() {
+            if (!audioCtx) setupAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const canvas = renderer.domElement;
+            const videoStream = canvas.captureStream(30);
+            const dest = audioCtx.createMediaStreamDestination();
+            if (audioSource) { audioSource.connect(dest); }
+            const tracks = [...videoStream.getVideoTracks(), ...dest.stream.getAudioTracks()];
+            const combinedStream = new MediaStream(tracks);
+            let options = { mimeType: 'video/webm; codecs=vp9' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) { options = { mimeType: 'video/webm' }; }
+
+            try { mediaRecorder = new MediaRecorder(combinedStream, options); }
+            catch (e) { alert("Browser does not support MediaRecorder."); return; }
+
+            recordedChunks = [];
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = exportVideo;
+            mediaRecorder.start();
+            isRecording = true;
+
+            const btn = document.getElementById('btn-record');
+            btn.classList.add('recording-active');
+            btn.innerHTML = '<i class="fas fa-square"></i>';
+            document.getElementById('cur-status').innerText = "REC: GALAXY CAPTURE...";
+            document.getElementById('cur-status').style.color = "red";
+        }
+
+        function stopRecording() {
+            if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+            mediaRecorder.stop();
+            isRecording = false;
+            const btn = document.getElementById('btn-record');
+            btn.classList.remove('recording-active');
+            btn.innerHTML = '<i class="fas fa-video"></i>';
+            document.getElementById('cur-status').innerText = "Processing Video...";
+            document.getElementById('cur-status').style.color = "#888";
+        }
+
+        function exportVideo() {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `VEO_GALAXY_${Date.now()}.webm`;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                document.getElementById('cur-status').innerText = "Visualizer Active";
+            }, 100);
+        }
+    </script>
+</body>
+
+</html>
